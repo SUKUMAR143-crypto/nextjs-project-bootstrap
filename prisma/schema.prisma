@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(ATTENDEE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  events        Event[]
+  tickets       Ticket[]
+  notifications Notification[]
+  reviews       Review[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+model Event {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  image       String?
+  venue       String
+  address     String
+  city        String
+  country     String
+  startDate   DateTime
+  endDate     DateTime
+  capacity    Int
+  price       Float
+  currency    String        @default("USD")
+  category    EventCategory
+  status      EventStatus   @default(DRAFT)
+  isPublic    Boolean       @default(true)
+  
+  // Organizer
+  organizerId String
+  organizer   User          @relation(fields: [organizerId], references: [id])
+  
+  // Relations
+  tickets     Ticket[]
+  reviews     Review[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("events")
+}
+
+model Ticket {
+  id            String        @id @default(cuid())
+  ticketNumber  String        @unique
+  qrCode        String?
+  status        TicketStatus  @default(ACTIVE)
+  purchasePrice Float
+  
+  // Relations
+  eventId       String
+  event         Event         @relation(fields: [eventId], references: [id])
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  
+  // Payment info
+  paymentId     String?
+  paymentStatus PaymentStatus @default(PENDING)
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("tickets")
+}
+
+model Review {
+  id      String @id @default(cuid())
+  rating  Int
+  comment String
+  
+  // Relations
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id])
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("reviews")
+}
+
+model Notification {
+  id      String           @id @default(cuid())
+  title   String
+  message String
+  type    NotificationType
+  isRead  Boolean          @default(false)
+  
+  // Relations
+  userId  String
+  user    User             @relation(fields: [userId], references: [id])
+  
+  createdAt DateTime       @default(now())
+
+  @@map("notifications")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  ORGANIZER
+  ATTENDEE
+}
+
+enum EventCategory {
+  TECH
+  MUSIC
+  BUSINESS
+  CONFERENCE
+  WORKSHOP
+  SEMINAR
+  NETWORKING
+  ENTERTAINMENT
+  SPORTS
+  ARTS
+  FOOD
+  OTHER
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum TicketStatus {
+  ACTIVE
+  USED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  EVENT_REMINDER
+  TICKET_PURCHASE
+  EVENT_UPDATE
+  PAYMENT_CONFIRMATION
+  SYSTEM
+}
